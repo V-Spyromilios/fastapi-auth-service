@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
+from app.models.password_reset_token import PasswordResetToken
 from app.models.user import User
-from tests.integration.helpers import login, register
+from tests.integration.helpers import forgot_password, login, register, reset_password
 
 
 def test_register_success(client):
@@ -123,3 +124,68 @@ def test_refresh_inactive_user_safe_response(client, db_session):
     assert response.status_code == 401
     assert response.json() == {"detail": "Invalid or expired token"}
     assert response.headers.get("WWW-Authenticate") == "Bearer"
+
+
+def test_forgot_password_always_returns_generic_200(client, reset_notifier):
+    register(client, "user@example.com")
+
+    existing = forgot_password(client, "user@example.com")
+    missing = forgot_password(client, "missing@example.com")
+
+    assert existing.status_code == 200
+    assert missing.status_code == 200
+    assert existing.json() == {"message": "If the account exists, a reset email has been sent."}
+    assert missing.json() == {"message": "If the account exists, a reset email has been sent."}
+    assert len(reset_notifier.events) == 1
+
+
+def test_reset_password_success(client, reset_notifier):
+    register(client, "user@example.com")
+    login_response = login(client, "user@example.com")
+    old_refresh_token = login_response.json()["refresh_token"]
+    forgot_password(client, "user@example.com")
+    raw_reset_token = reset_notifier.events[-1]["reset_token"]
+
+    response = reset_password(client, raw_reset_token, "new correct horse battery staple")
+
+    assert response.status_code == 200
+    assert response.json() == {"message": "Password has been reset."}
+
+    refresh_response = client.post("/api/v1/auth/refresh", json={"refresh_token": old_refresh_token})
+    assert refresh_response.status_code == 401
+    assert refresh_response.json() == {"detail": "Invalid or expired token"}
+    assert refresh_response.headers.get("WWW-Authenticate") == "Bearer"
+
+
+def test_reset_password_invalid_token_safe_response(client):
+    response = reset_password(client, "not-a-real-reset-token", "new correct horse battery staple")
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Invalid or expired reset token"}
+
+
+def test_reset_password_expired_token_safe_response(client, db_session, reset_notifier):
+    register(client, "user@example.com")
+    forgot_password(client, "user@example.com")
+    raw_reset_token = reset_notifier.events[-1]["reset_token"]
+    token_record = db_session.execute(select(PasswordResetToken)).scalar_one()
+    token_record.expires_at = token_record.created_at
+    db_session.commit()
+
+    response = reset_password(client, raw_reset_token, "new correct horse battery staple")
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "Invalid or expired reset token"}
+
+
+def test_reset_password_reused_token_safe_response(client, reset_notifier):
+    register(client, "user@example.com")
+    forgot_password(client, "user@example.com")
+    raw_reset_token = reset_notifier.events[-1]["reset_token"]
+    first = reset_password(client, raw_reset_token, "new correct horse battery staple")
+    assert first.status_code == 200
+
+    second = reset_password(client, raw_reset_token, "another new correct horse battery staple")
+
+    assert second.status_code == 400
+    assert second.json() == {"detail": "Invalid or expired reset token"}

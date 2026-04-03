@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
 
     app.add_middleware(RequestContextMiddleware)
 
+    # CORS checks whether a browser frontend origin is allowed to make cross-origin requests to our API. It does not affect non-browser clients.
     if settings.app_cors_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -36,6 +37,7 @@ def create_app() -> FastAPI:
         )
 
     if settings.app_trusted_hosts:
+        #checks whether the request’s host header
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.app_trusted_hosts)
 
     @app.get("/health")
@@ -46,6 +48,7 @@ def create_app() -> FastAPI:
     app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
 
     return app
+    # uvicorn app.main:app starts here
 
 
 app = create_app()

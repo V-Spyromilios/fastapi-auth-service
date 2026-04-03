@@ -35,3 +35,15 @@ class RevokedTokenError(AppError):
 
 class TokenReplayError(AppError):
     """Token reuse detected."""
+
+
+class PasswordResetTokenInvalidError(AppError):
+    """Password reset token is malformed or unknown."""
+
+
+class PasswordResetTokenExpiredError(AppError):
+    """Password reset token is expired."""
+
+
+class PasswordResetTokenUsedError(AppError):
+    """Password reset token has already been consumed or revoked."""

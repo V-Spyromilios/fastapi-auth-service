@@ -23,5 +23,9 @@ class RefreshTokenRepository:
         stmt = select(RefreshToken).where(RefreshToken.family_id == family_id)
         return list(self._db.execute(stmt).scalars().all())
 
+    def list_by_user_id(self, user_id: UUID) -> list[RefreshToken]:
+        stmt = select(RefreshToken).where(RefreshToken.user_id == user_id)
+        return list(self._db.execute(stmt).scalars().all())
+
     def add(self, token: RefreshToken) -> None:
         self._db.add(token)

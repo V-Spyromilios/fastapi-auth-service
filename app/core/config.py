@@ -28,7 +28,7 @@ class LogLevel(str, Enum):
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    # App
+    # App (Populate the Python field app_env from the external input key APP_ENV, and so on for the other fields)
     app_env: AppEnv = Field(default=AppEnv.LOCAL, validation_alias="APP_ENV")
     app_name: str = Field(default="fastapi-auth", validation_alias="APP_NAME")
     app_log_level: LogLevel = Field(default=LogLevel.INFO, validation_alias="APP_LOG_LEVEL")
@@ -51,6 +51,14 @@ class Settings(BaseSettings):
     jwt_access_ttl_minutes: int = Field(default=15, validation_alias="JWT_ACCESS_TTL_MINUTES")
     jwt_refresh_ttl_days: int = Field(default=30, validation_alias="JWT_REFRESH_TTL_DAYS")
     refresh_token_pepper: str | None = Field(default=None, validation_alias="REFRESH_TOKEN_PEPPER")
+    password_reset_token_ttl_minutes: int = Field(
+        default=30,
+        validation_alias="PASSWORD_RESET_TOKEN_TTL_MINUTES",
+    )
+    password_reset_token_pepper: str | None = Field(
+        default=None,
+        validation_alias="PASSWORD_RESET_TOKEN_PEPPER",
+    )
 
     # Logging
     log_include_ip: bool = Field(default=False, validation_alias="LOG_INCLUDE_IP")
@@ -98,6 +106,8 @@ class Settings(BaseSettings):
 
         if not self.refresh_token_pepper:
             raise ValueError("REFRESH_TOKEN_PEPPER is required for refresh token hashing")
+        if not self.password_reset_token_pepper:
+            raise ValueError("PASSWORD_RESET_TOKEN_PEPPER is required for password reset token hashing")
 
         if self.jwt_alg == "EdDSA":
             _assert_pem(self.jwt_private_key, "PRIVATE KEY")
@@ -125,6 +135,8 @@ def _assert_pem(value: str, label: str) -> None:
         raise ValueError(f"Key material must include PEM {label} block")
 
 
+# Use LRU cache to avoid reloading settings multiple times,
+# since they are immutable after startup
 @lru_cache
 def get_settings() -> Settings:
     env = os.getenv("APP_ENV", "local")

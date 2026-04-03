@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: auth
+          POSTGRES_PASSWORD: auth
+          POSTGRES_DB: auth_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U auth -d auth_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+psycopg://auth:auth@127.0.0.1:5432/auth_test
+      TEST_DATABASE_URL: postgresql+psycopg://auth:auth@127.0.0.1:5432/auth_test
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            python - <<'PY'
+import socket
+sock = socket.socket()
+sock.settimeout(1)
+try:
+    sock.connect(("127.0.0.1", 5432))
+except OSError:
+    raise SystemExit(1)
+finally:
+    sock.close()
+PY
+            if [ $? -eq 0 ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "PostgreSQL did not become available in time" >&2
+          exit 1
+
+      - name: Run Ruff
+        run: python -m ruff check .
+
+      # Enable this once mypy is confirmed clean for the current SQLAlchemy and test fixtures.
+      # - name: Run mypy
+      #   run: python -m mypy app tests
+
+      - name: Run tests
+        run: python -m pytest -q

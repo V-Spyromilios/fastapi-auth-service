@@ -6,15 +6,22 @@ from app.core.errors import (
     InactiveUserError,
     InvalidCredentialsError,
     InvalidTokenError,
+    PasswordResetTokenExpiredError,
+    PasswordResetTokenInvalidError,
+    PasswordResetTokenUsedError,
     RevokedTokenError,
     TokenExpiredError,
     TokenReplayError,
 )
 from app.schemas.auth import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
     LoginRequest,
     LogoutRequest,
     RefreshRequest,
     RegisterRequest,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
     TokenPair,
 )
 from app.schemas.users import UserPublic
@@ -68,3 +75,28 @@ def logout(payload: LogoutRequest, auth: AuthService = Depends(get_auth_service_
     except (InvalidTokenError, TokenExpiredError, RevokedTokenError, TokenReplayError):
         pass
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    auth: AuthService = Depends(get_auth_service_dep),
+) -> ForgotPasswordResponse:
+    auth.request_password_reset(email=payload.email)
+    return ForgotPasswordResponse(message="If the account exists, a reset email has been sent.")
+
+
+@router.post("/reset-password", response_model=ResetPasswordResponse)
+def reset_password(
+    payload: ResetPasswordRequest,
+    auth: AuthService = Depends(get_auth_service_dep),
+) -> ResetPasswordResponse:
+    try:
+        auth.reset_password(reset_token=payload.reset_token, new_password=payload.new_password)
+    except (
+        PasswordResetTokenInvalidError,
+        PasswordResetTokenExpiredError,
+        PasswordResetTokenUsedError,
+    ):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+    return ResetPasswordResponse(message="Password has been reset.")

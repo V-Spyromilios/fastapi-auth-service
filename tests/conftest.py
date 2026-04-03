@@ -17,6 +17,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from app.core.config import Settings, get_settings
+from app.services.password_reset_notifier import PasswordResetNotifier
 
 
 @pytest.fixture(scope="session")
@@ -59,6 +60,8 @@ def settings(test_db_url: str, ed25519_test_keys: tuple[str, str]) -> Settings:
             "JWT_ACCESS_TTL_MINUTES": "15",
             "JWT_REFRESH_TTL_DAYS": "30",
             "REFRESH_TOKEN_PEPPER": "test-pepper",
+            "PASSWORD_RESET_TOKEN_TTL_MINUTES": "30",
+            "PASSWORD_RESET_TOKEN_PEPPER": "test-password-reset-pepper",
             "LOG_INCLUDE_IP": "false",
             "LOG_INCLUDE_USER_AGENT": "false",
             "LOG_INCLUDE_EMAIL": "false",
@@ -104,9 +107,28 @@ def db_session(db_connection: Connection) -> Generator[Session, None, None]:
     finally:
         session.close()
 
+
+class RecordingPasswordResetNotifier(PasswordResetNotifier):
+    def __init__(self) -> None:
+        self.events: list[dict[str, str]] = []
+
+    def send_password_reset(self, *, email: str, reset_token: str) -> None:
+        self.events.append({"email": email, "reset_token": reset_token})
+
+
 @pytest.fixture()
-def app(settings: Settings, db_session: Session):
-    from app.api.deps import get_db_dep, get_settings_dep, get_token_service_dep
+def reset_notifier() -> RecordingPasswordResetNotifier:
+    return RecordingPasswordResetNotifier()
+
+
+@pytest.fixture()
+def app(settings: Settings, db_session: Session, reset_notifier: RecordingPasswordResetNotifier):
+    from app.api.deps import (
+        get_db_dep,
+        get_password_reset_notifier_dep,
+        get_settings_dep,
+        get_token_service_dep,
+    )
     from app.main import create_app
     from app.services.token_service import JwtTokenService
 
@@ -121,9 +143,13 @@ def app(settings: Settings, db_session: Session):
     def _token_service_override() -> JwtTokenService:
         return JwtTokenService(settings)
 
+    def _reset_notifier_override() -> RecordingPasswordResetNotifier:
+        return reset_notifier
+
     app_instance.dependency_overrides[get_db_dep] = _db_override
     app_instance.dependency_overrides[get_settings_dep] = _settings_override
     app_instance.dependency_overrides[get_token_service_dep] = _token_service_override
+    app_instance.dependency_overrides[get_password_reset_notifier_dep] = _reset_notifier_override
 
     return app_instance
 
