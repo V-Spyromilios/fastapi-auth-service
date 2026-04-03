@@ -44,20 +44,7 @@ jobs:
       - name: Wait for PostgreSQL
         run: |
           for i in {1..30}; do
-            python - <<'PY'
-import socket
-sock = socket.socket()
-sock.settimeout(1)
-try:
-    sock.connect(("127.0.0.1", 5432))
-except OSError:
-    raise SystemExit(1)
-finally:
-    sock.close()
-PY
-            if [ $? -eq 0 ]; then
-              exit 0
-            fi
+            python -c "import socket; s=socket.socket(); s.settimeout(1); s.connect(('127.0.0.1', 5432)); s.close()" && exit 0
             sleep 2
           done
           echo "PostgreSQL did not become available in time" >&2
