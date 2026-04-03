@@ -26,9 +26,14 @@ class LogLevel(str, Enum):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
-    # App (Populate the Python field app_env from the external input key APP_ENV, and so on for the other fields)
+    # App (Populate the Python field app_env from the external input key APP_ENV,
+    # and so on for the other fields)
     app_env: AppEnv = Field(default=AppEnv.LOCAL, validation_alias="APP_ENV")
     app_name: str = Field(default="fastapi-auth", validation_alias="APP_NAME")
     app_log_level: LogLevel = Field(default=LogLevel.INFO, validation_alias="APP_LOG_LEVEL")
@@ -107,7 +112,9 @@ class Settings(BaseSettings):
         if not self.refresh_token_pepper:
             raise ValueError("REFRESH_TOKEN_PEPPER is required for refresh token hashing")
         if not self.password_reset_token_pepper:
-            raise ValueError("PASSWORD_RESET_TOKEN_PEPPER is required for password reset token hashing")
+            raise ValueError(
+                "PASSWORD_RESET_TOKEN_PEPPER is required for password reset token hashing"
+            )
 
         if self.jwt_alg == "EdDSA":
             _assert_pem(self.jwt_private_key, "PRIVATE KEY")

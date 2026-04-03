@@ -42,7 +42,10 @@ def test_get_me_rejects_stale_access_token_after_password_reset(client, reset_no
     reset_response = reset_password(client, raw_reset_token, "new correct horse battery staple")
     assert reset_response.status_code == 200
 
-    response = client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {old_access_token}"})
+    response = client.get(
+        "/api/v1/users/me",
+        headers={"Authorization": f"Bearer {old_access_token}"},
+    )
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Unauthorized"}

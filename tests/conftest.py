@@ -8,13 +8,12 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session
-
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from app.core.config import Settings, get_settings
 from app.services.password_reset_notifier import PasswordResetNotifier

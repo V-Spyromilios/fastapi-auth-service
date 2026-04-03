@@ -18,7 +18,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("users", sa.Column("password_changed_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column(
+        "users",
+        sa.Column("password_changed_at", sa.DateTime(timezone=True), nullable=True),
+    )
 
     op.create_table(
         "password_reset_tokens",

@@ -26,7 +26,8 @@ def create_app() -> FastAPI:
 
     app.add_middleware(RequestContextMiddleware)
 
-    # CORS checks whether a browser frontend origin is allowed to make cross-origin requests to our API. It does not affect non-browser clients.
+    # CORS checks whether a browser frontend origin is allowed to make
+    # cross-origin requests to our API. It does not affect non-browser clients.
     if settings.app_cors_origins:
         app.add_middleware(
             CORSMiddleware,

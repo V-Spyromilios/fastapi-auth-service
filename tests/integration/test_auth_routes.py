@@ -53,7 +53,9 @@ def test_login_invalid_credentials_no_user_enumeration(client):
 
 def test_login_inactive_user_same_safe_response(client, db_session):
     register(client, "user@example.com")
-    user = db_session.execute(select(User).where(User.email_normalized == "user@example.com")).scalar_one()
+    user = db_session.execute(
+        select(User).where(User.email_normalized == "user@example.com")
+    ).scalar_one()
     user.is_active = False
     db_session.commit()
 
@@ -115,7 +117,9 @@ def test_refresh_inactive_user_safe_response(client, db_session):
     register(client, "user@example.com")
     login_response = login(client, "user@example.com")
     refresh_token = login_response.json()["refresh_token"]
-    user = db_session.execute(select(User).where(User.email_normalized == "user@example.com")).scalar_one()
+    user = db_session.execute(
+        select(User).where(User.email_normalized == "user@example.com")
+    ).scalar_one()
     user.is_active = False
     db_session.commit()
 
@@ -151,7 +155,10 @@ def test_reset_password_success(client, reset_notifier):
     assert response.status_code == 200
     assert response.json() == {"message": "Password has been reset."}
 
-    refresh_response = client.post("/api/v1/auth/refresh", json={"refresh_token": old_refresh_token})
+    refresh_response = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": old_refresh_token},
+    )
     assert refresh_response.status_code == 401
     assert refresh_response.json() == {"detail": "Invalid or expired token"}
     assert refresh_response.headers.get("WWW-Authenticate") == "Bearer"

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Generator
-
 import uuid
+from collections.abc import Generator
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -59,7 +58,9 @@ def get_auth_service_dep(
     db: Session = Depends(get_db_dep),
     hasher: PasswordHasher = Depends(get_password_hasher_dep),
     tokens: TokenService = Depends(get_token_service_dep),
-    reset_tokens: PasswordResetTokenService = Depends(get_password_reset_token_service_dep),
+    reset_tokens: PasswordResetTokenService = Depends(
+        get_password_reset_token_service_dep
+    ),
     reset_notifier: PasswordResetNotifier = Depends(get_password_reset_notifier_dep),
 ) -> AuthService:
     return AuthService(
@@ -93,9 +94,16 @@ def get_current_user_dep(
         issued_at = int(payload.get("iat"))
         user_id = uuid.UUID(subject)
         return auth.get_current_user(user_id, token_issued_at=issued_at)
-    except (InvalidTokenError, TokenExpiredError, ValueError, TypeError, UserNotFoundError, InactiveUserError):
+    except (
+        InvalidTokenError,
+        TokenExpiredError,
+        ValueError,
+        TypeError,
+        UserNotFoundError,
+        InactiveUserError,
+    ) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Unauthorized",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from exc

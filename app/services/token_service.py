@@ -78,12 +78,21 @@ class JwtTokenService(TokenService):
         secret = self._settings.refresh_token_pepper
         if not secret:
             raise InvalidTokenError()
-        digest = hmac.new(secret.encode("utf-8"), token.encode("utf-8"), hashlib.sha256).hexdigest()
+        digest = hmac.new(
+            secret.encode("utf-8"),
+            token.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
         return digest
 
     def _encode(self, payload: dict[str, Any]) -> str:
         headers = {"kid": self._keys.private_kid}
-        return jwt.encode(payload, self._keys.private_key, algorithm=self._settings.jwt_alg, headers=headers)
+        return jwt.encode(
+            payload,
+            self._keys.private_key,
+            algorithm=self._settings.jwt_alg,
+            headers=headers,
+        )
 
     def _decode(self, token: str) -> dict[str, Any]:
         try:

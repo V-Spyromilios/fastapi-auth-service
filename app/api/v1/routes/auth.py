@@ -31,41 +31,55 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, auth: AuthService = Depends(get_auth_service_dep)) -> UserPublic:
+def register(
+    payload: RegisterRequest,
+    auth: AuthService = Depends(get_auth_service_dep),
+) -> UserPublic:
     try:
         return auth.register(email=payload.email, password=payload.password)
-    except DuplicateEmailError:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
+    except DuplicateEmailError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered",
+        ) from exc
 
 
 @router.post("/login", response_model=TokenPair)
 def login(payload: LoginRequest, auth: AuthService = Depends(get_auth_service_dep)) -> TokenPair:
     try:
         return auth.login(email=payload.email, password=payload.password)
-    except (InvalidCredentialsError, InactiveUserError):
+    except (InvalidCredentialsError, InactiveUserError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from exc
 
 
 @router.post("/refresh", response_model=TokenPair)
-def refresh(payload: RefreshRequest, auth: AuthService = Depends(get_auth_service_dep)) -> TokenPair:
+def refresh(
+    payload: RefreshRequest,
+    auth: AuthService = Depends(get_auth_service_dep),
+) -> TokenPair:
     try:
         return auth.refresh(refresh_token=payload.refresh_token)
-    except (InvalidTokenError, TokenExpiredError, RevokedTokenError, TokenReplayError):
+    except (
+        InvalidTokenError,
+        TokenExpiredError,
+        RevokedTokenError,
+        TokenReplayError,
+    ) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
-        )
-    except InactiveUserError:
+        ) from exc
+    except InactiveUserError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from exc
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -97,6 +111,9 @@ def reset_password(
         PasswordResetTokenInvalidError,
         PasswordResetTokenExpiredError,
         PasswordResetTokenUsedError,
-    ):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired reset token")
+    ) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        ) from exc
     return ResetPasswordResponse(message="Password has been reset.")

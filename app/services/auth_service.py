@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -86,7 +86,10 @@ class AuthService:
 
         access_token = self._token_service.create_access_token(str(user.id))
         family_id = uuid.uuid4()
-        refresh_token, expires_at = self._token_service.create_refresh_token(str(user.id), family_id)
+        refresh_token, expires_at = self._token_service.create_refresh_token(
+            str(user.id),
+            family_id,
+        )
         token_hash = self._token_service.hash_refresh_token(refresh_token)
 
         token_record = RefreshToken(
@@ -190,7 +193,11 @@ class AuthService:
 
         now = utc_now()
         for reset_token in self._password_reset_tokens.list_by_user_id(user.id):
-            if reset_token.used_at is None and reset_token.revoked_at is None and reset_token.expires_at > now:
+            if (
+                reset_token.used_at is None
+                and reset_token.revoked_at is None
+                and reset_token.expires_at > now
+            ):
                 reset_token.revoked_at = now
 
         raw_token = self._password_reset_token_service.generate_token()
@@ -208,7 +215,10 @@ class AuthService:
             self._db.rollback()
             raise
         try:
-            self._password_reset_notifier.send_password_reset(email=user.email, reset_token=raw_token)
+            self._password_reset_notifier.send_password_reset(
+                email=user.email,
+                reset_token=raw_token,
+            )
         except Exception:
             # Keep the forgot-password API externally generic even if delivery fails.
             return
@@ -240,7 +250,11 @@ class AuthService:
             self._db.rollback()
             raise
 
-    def get_current_user(self, user_id: uuid.UUID, token_issued_at: int | None = None) -> UserPublic:
+    def get_current_user(
+        self,
+        user_id: uuid.UUID,
+        token_issued_at: int | None = None,
+    ) -> UserPublic:
         user = self._users.get_by_id(user_id)
         if not user:
             raise UserNotFoundError()
@@ -273,5 +287,9 @@ class AuthService:
         for token in self._password_reset_tokens.list_by_user_id(user_id):
             if exclude_token_id is not None and token.id == exclude_token_id:
                 continue
-            if token.used_at is None and token.revoked_at is None and token.expires_at > now:
+            if (
+                token.used_at is None
+                and token.revoked_at is None
+                and token.expires_at > now
+            ):
                 token.revoked_at = now

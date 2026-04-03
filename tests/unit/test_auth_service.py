@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import timedelta
 import uuid
+from datetime import timedelta
 
 import pytest
 
@@ -16,9 +16,9 @@ from app.core.errors import (
     TokenReplayError,
     UserNotFoundError,
 )
+from app.core.security import RefreshTokenStatus
 from app.core.time import utc_now
 from app.models.password_reset_token import PasswordResetToken
-from app.core.security import RefreshTokenStatus
 from app.models.user import User
 from app.repositories.password_reset_token_repo import PasswordResetTokenRepository
 from app.repositories.token_repo import RefreshTokenRepository
@@ -27,7 +27,6 @@ from app.services.password_hasher import Argon2idHasher
 from app.services.password_reset_notifier import PasswordResetNotifier
 from app.services.password_reset_token_service import OpaquePasswordResetTokenService
 from app.services.token_service import JwtTokenService
-
 
 PASSWORD = "correct horse battery staple"
 NEW_PASSWORD = "new correct horse battery staple"
@@ -133,8 +132,12 @@ def test_refresh_success(db_session, settings, reset_notifier) -> None:
     assert refresh_result.refresh_token != login_result.refresh_token
 
     repo = RefreshTokenRepository(db_session)
-    old_record = repo.get_by_token_hash(service._token_service.hash_refresh_token(login_result.refresh_token))
-    new_record = repo.get_by_token_hash(service._token_service.hash_refresh_token(refresh_result.refresh_token))
+    old_record = repo.get_by_token_hash(
+        service._token_service.hash_refresh_token(login_result.refresh_token)
+    )
+    new_record = repo.get_by_token_hash(
+        service._token_service.hash_refresh_token(refresh_result.refresh_token)
+    )
 
     assert old_record is not None
     assert old_record.status == RefreshTokenStatus.ROTATED
@@ -175,7 +178,9 @@ def test_refresh_replay_detection_revokes_family(db_session, settings, reset_not
         service.refresh(login_result.refresh_token)
 
     repo = RefreshTokenRepository(db_session)
-    old_record = repo.get_by_token_hash(service._token_service.hash_refresh_token(login_result.refresh_token))
+    old_record = repo.get_by_token_hash(
+        service._token_service.hash_refresh_token(login_result.refresh_token)
+    )
     assert old_record is not None
 
     family_records = repo.list_by_family_id(old_record.family_id)
@@ -183,7 +188,11 @@ def test_refresh_replay_detection_revokes_family(db_session, settings, reset_not
     assert all(record.status == RefreshTokenStatus.REVOKED for record in family_records)
 
 
-def test_logout_revokes_active_token_and_is_idempotent(db_session, settings, reset_notifier) -> None:
+def test_logout_revokes_active_token_and_is_idempotent(
+    db_session,
+    settings,
+    reset_notifier,
+) -> None:
     _create_user(db_session, "user@example.com")
     service = _service(db_session, settings, reset_notifier)
     login_result = service.login("user@example.com", PASSWORD)
@@ -238,13 +247,19 @@ def test_request_password_reset_existing_user_creates_hashed_token_and_notifies(
     assert event["email"] == "user@example.com"
 
     repo = PasswordResetTokenRepository(db_session)
-    token_record = repo.get_by_token_hash(service._password_reset_token_service.hash_token(event["reset_token"]))
+    token_record = repo.get_by_token_hash(
+        service._password_reset_token_service.hash_token(event["reset_token"])
+    )
     assert token_record is not None
     assert token_record.user_id == user.id
     assert token_record.token_hash != event["reset_token"]
 
 
-def test_request_password_reset_missing_user_is_silent(db_session, settings, reset_notifier) -> None:
+def test_request_password_reset_missing_user_is_silent(
+    db_session,
+    settings,
+    reset_notifier,
+) -> None:
     service = _service(db_session, settings, reset_notifier)
 
     service.request_password_reset("missing@example.com")
@@ -275,7 +290,11 @@ def test_request_password_reset_notifier_failure_is_silent(db_session, settings)
     assert len(tokens) == 1
 
 
-def test_request_password_reset_revokes_prior_active_tokens(db_session, settings, reset_notifier) -> None:
+def test_request_password_reset_revokes_prior_active_tokens(
+    db_session,
+    settings,
+    reset_notifier,
+) -> None:
     user = _create_user(db_session, "user@example.com")
     service = _service(db_session, settings, reset_notifier)
     repo = PasswordResetTokenRepository(db_session)
