@@ -10,20 +10,46 @@ from alembic import command
 from alembic.config import Config
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.engine import Connection, Engine, make_url
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.services.password_reset_notifier import PasswordResetNotifier
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(REPO_ROOT / ".env")
+
+
+def _infer_test_db_url() -> str | None:
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        return None
+
+    parsed = make_url(database_url)
+    if not parsed.database:
+        return None
+
+    database_name = parsed.database
+    test_database_name = database_name
+    if not database_name.endswith("_test"):
+        test_database_name = f"{database_name}_test"
+
+    return parsed.set(database=test_database_name).render_as_string(hide_password=False)
+
 
 @pytest.fixture(scope="session")
 def test_db_url() -> str:
-    url = os.getenv("TEST_DATABASE_URL")
+    url = os.getenv("TEST_DATABASE_URL") or _infer_test_db_url()
     if not url:
-        raise RuntimeError("TEST_DATABASE_URL must be set for tests")
+        raise RuntimeError(
+            "DB-backed tests require TEST_DATABASE_URL. "
+            "Add it to .env or run ./scripts/test.sh, which uses the local "
+            "Docker auth_test database."
+        )
+    os.environ["TEST_DATABASE_URL"] = url
     return url
 
 
@@ -46,6 +72,7 @@ def ed25519_test_keys() -> tuple[str, str]:
     return private_pem, public_pem
 
 @pytest.fixture(scope="session")
+
 def settings(test_db_url: str, ed25519_test_keys: tuple[str, str]) -> Settings:
     private_pem, public_pem = ed25519_test_keys
     os.environ.update(
@@ -77,7 +104,7 @@ def engine(settings: Settings) -> Engine:
 
 @pytest.fixture(scope="session", autouse=True)
 def apply_migrations(settings: Settings) -> None:
-    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    config = Config(str(REPO_ROOT / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", settings.database_url)
     command.upgrade(config, "head")
 

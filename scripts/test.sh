@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+source "$(dirname "$0")/common.sh"
 
-if [ ! -d ".venv" ]; then
-  echo "Error: .venv not found. Create it first." >&2
-  exit 1
-fi
+cd_repo_root
+activate_venv
+load_local_env_file
+use_local_database_defaults
+start_db_service
+ensure_local_test_database
 
-source .venv/bin/activate
+info "Running the DB-backed pytest suite..."
 
-export DATABASE_URL='postgresql+psycopg://auth:auth@localhost:5432/auth'
-export TEST_DATABASE_URL='postgresql+psycopg://auth:auth@localhost:5432/auth_test'
-
-docker compose up -d db
-
-python -m pytest -q
+python -m pytest -q "$@"

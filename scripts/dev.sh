@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+source "$(dirname "$0")/common.sh"
 
-if [ ! -d ".venv" ]; then
-  echo "Error: .venv not found. Create it first." >&2
-  exit 1
+cd_repo_root
+activate_venv
+load_local_env_file
+use_local_database_defaults
+
+if [ ! -f ".env" ]; then
+  fail "Missing .env. Copy .env.example to .env and fill in the local JWT settings before starting the app."
 fi
 
-source .venv/bin/activate
+start_db_service
 
-export DATABASE_URL='postgresql+psycopg://auth:auth@localhost:5432/auth'
+info "Starting FastAPI dev server on http://127.0.0.1:${APP_PORT:-8000}"
 
-docker compose up -d db
-
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --host "${APP_HOST:-0.0.0.0}" --port "${APP_PORT:-8000}"

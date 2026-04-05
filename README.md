@@ -27,15 +27,20 @@ A production-minded FastAPI authentication service built to learn backend engine
 
 ## Quick Start
 
-1. Copy `.env.example` to `.env` and fill in local values.
-2. Create a local virtual environment and install dependencies with `python3 -m venv .venv && . .venv/bin/activate && python -m pip install -e ".[dev]"`.
-3. Start the database with `docker compose up -d db`.
-4. Run migrations with `DATABASE_URL=postgresql+psycopg://auth:auth@localhost:5432/auth ./scripts/init_db.sh`.
-5. Start the app with `./scripts/dev.sh`.
-6. Create a local test database once with `docker compose exec db psql -U auth -d postgres -c "CREATE DATABASE auth_test;"`.
-7. Run tests with `./scripts/test.sh`.
+1. Create a local virtual environment and install dependencies with `python3 -m venv .venv && . .venv/bin/activate && python -m pip install -e ".[dev]"`.
+2. Copy `.env.example` to `.env` and fill in local values.
+3. Run migrations with `./scripts/init_db.sh`.
+4. Start the app with `./scripts/dev.sh`.
+5. Run tests with `./scripts/test.sh`.
 
-The helper scripts in `scripts/` assume a local `.venv` and local PostgreSQL running via Docker Compose.
+The helper scripts in `scripts/`:
+
+- run from the repo root automatically
+- expect a local `.venv`
+- use the local PostgreSQL service from `docker compose`
+- create the local `auth_test` database automatically on first test run when using the default local test DB
+
+`TEST_DATABASE_URL` is optional in `.env`. If you leave it unset, pytest will infer it from `DATABASE_URL` by using the same connection details with the database name changed to `*_test`.
 
 ## API
 
