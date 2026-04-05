@@ -18,6 +18,7 @@ from app.core.errors import (
     UnauthorizedError,
     UserNotFoundError,
 )
+from app.core.logging import log_security_event
 
 _BEARER_HEADERS = {"WWW-Authenticate": "Bearer"}
 
@@ -41,7 +42,17 @@ def add_exception_handlers(app: FastAPI) -> None:
         request: Request,
         exc: RateLimitExceededError,
     ) -> JSONResponse:
-        del request
+        settings = request.app.state.settings
+        log_security_event(
+            settings,
+            "auth.rate_limit.exceeded",
+            level="warning",
+            outcome="blocked",
+            reason=_rate_limit_reason_for_path(request.url.path),
+            path=request.url.path,
+            method=request.method,
+            retry_after_seconds=exc.retry_after_seconds,
+        )
         return _error_response(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=str(exc),
@@ -116,3 +127,11 @@ def add_exception_handlers(app: FastAPI) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired reset token",
         )
+
+
+def _rate_limit_reason_for_path(path: str) -> str:
+    if path.endswith("/login"):
+        return "login"
+    if path.endswith("/forgot-password"):
+        return "forgot_password"
+    return "request"

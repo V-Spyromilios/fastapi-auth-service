@@ -10,6 +10,7 @@ A production-minded FastAPI authentication service built to learn backend engine
 - Logout
 - Forgot-password and reset-password flow
 - Scoped in-memory rate limiting for login and forgot-password
+- Structured auth/security event logging with request IDs and opt-in metadata
 - Access token invalidation after password reset
 - PostgreSQL with Alembic migrations
 - Dockerized local database setup
@@ -63,6 +64,8 @@ Main routes:
 `GET /ready` is a readiness check that returns `200` only when the app can reach PostgreSQL.
 
 `POST /api/v1/auth/login` and `POST /api/v1/auth/forgot-password` support small in-memory rate limits for local or single-instance use when `RATE_LIMIT_ENABLED=true`.
+
+Auth/security logs include a request ID by default. Email, client IP, and user agent are only added when `LOG_INCLUDE_EMAIL`, `LOG_INCLUDE_IP`, or `LOG_INCLUDE_USER_AGENT` are enabled.
 
 ## Project Structure
 

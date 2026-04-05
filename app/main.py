@@ -8,10 +8,12 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from app.api.exception_handlers import add_exception_handlers
 from app.api.v1.routes import auth, users
 from app.core.config import get_settings
-from app.core.logging import configure_logging
+from app.core.logging import configure_logging, get_logger
 from app.core.rate_limit import build_rate_limiter
 from app.db.session import Database
 from app.observability.middleware import RequestContextMiddleware
+
+logger = get_logger("app.health")
 
 
 @asynccontextmanager
@@ -58,6 +60,11 @@ def create_app() -> FastAPI:
                 status_code=status.HTTP_200_OK,
                 content={"status": "ok", "database": "ok"},
             )
+        logger.warning(
+            "service.readiness.failed",
+            outcome="failure",
+            reason="database_unavailable",
+        )
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"status": "error", "database": "unavailable"},

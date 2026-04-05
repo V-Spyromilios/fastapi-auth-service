@@ -19,6 +19,7 @@ from app.core.errors import (
     TokenReplayError,
     UserNotFoundError,
 )
+from app.core.logging import log_security_event
 from app.core.security import RefreshTokenStatus
 from app.core.time import utc_now
 from app.models.password_reset_token import PasswordResetToken
@@ -61,6 +62,14 @@ class AuthService:
         email_clean = email.strip()
         email_normalized = email_clean.lower()
         if self._users.get_by_email_normalized(email_normalized):
+            log_security_event(
+                self._settings,
+                "auth.register.duplicate_email",
+                level="warning",
+                email=email_clean,
+                outcome="blocked",
+                reason="duplicate_email",
+            )
             raise DuplicateEmailError()
 
         password_hash = self._hasher.hash(password)
@@ -76,6 +85,14 @@ class AuthService:
         except IntegrityError as exc:
             self._db.rollback()
             if _is_duplicate_email_integrity_error(exc):
+                log_security_event(
+                    self._settings,
+                    "auth.register.duplicate_email",
+                    level="warning",
+                    email=email_clean,
+                    outcome="blocked",
+                    reason="duplicate_email",
+                )
                 raise DuplicateEmailError() from exc
             raise
         except Exception:
@@ -88,8 +105,25 @@ class AuthService:
         email_normalized = email_clean.lower()
         user = self._users.get_by_email_normalized(email_normalized)
         if not user or not self._hasher.verify(password, user.password_hash):
+            log_security_event(
+                self._settings,
+                "auth.login.failed",
+                level="warning",
+                email=email_clean,
+                outcome="failure",
+                reason="invalid_credentials",
+            )
             raise InvalidCredentialsError()
         if not user.is_active:
+            log_security_event(
+                self._settings,
+                "auth.login.failed",
+                level="warning",
+                user_id=user.id,
+                email=user.email,
+                outcome="failure",
+                reason="inactive_user",
+            )
             raise InactiveUserError()
 
         access_token = self._token_service.create_access_token(str(user.id))
@@ -113,6 +147,13 @@ class AuthService:
         except Exception:
             self._db.rollback()
             raise
+        log_security_event(
+            self._settings,
+            "auth.login.success",
+            user_id=user.id,
+            email=user.email,
+            outcome="success",
+        )
         return TokenPair(access_token=access_token, refresh_token=refresh_token)
 
     def refresh(self, refresh_token: str) -> TokenPair:
@@ -129,6 +170,16 @@ class AuthService:
             except Exception:
                 self._db.rollback()
                 raise
+            log_security_event(
+                self._settings,
+                "auth.refresh.replay_detected",
+                level="warning",
+                user_id=token_record.user_id,
+                outcome="failure",
+                reason="token_replay",
+                family_id=token_record.family_id,
+                token_status=token_record.status,
+            )
             raise TokenReplayError()
 
         if token_record.expires_at <= utc_now():
@@ -170,17 +221,37 @@ class AuthService:
         except Exception:
             self._db.rollback()
             raise
+        log_security_event(
+            self._settings,
+            "auth.refresh.success",
+            user_id=user.id,
+            email=user.email,
+            outcome="success",
+            family_id=family_id,
+        )
         return TokenPair(access_token=access_token, refresh_token=new_refresh_token)
 
     def logout(self, refresh_token: str) -> None:
         try:
             self._token_service.decode_refresh_token(refresh_token)
         except (InvalidTokenError, TokenExpiredError):
+            log_security_event(
+                self._settings,
+                "auth.logout.noop",
+                outcome="noop",
+                reason="invalid_or_expired_token",
+            )
             return
 
         token_hash = self._token_service.hash_refresh_token(refresh_token)
         token_record = self._tokens.get_by_token_hash(token_hash)
         if not token_record:
+            log_security_event(
+                self._settings,
+                "auth.logout.noop",
+                outcome="noop",
+                reason="token_not_found",
+            )
             return
 
         if token_record.status == RefreshTokenStatus.ACTIVE:
@@ -191,12 +262,36 @@ class AuthService:
             except Exception:
                 self._db.rollback()
                 raise
+            log_security_event(
+                self._settings,
+                "auth.logout.success",
+                user_id=token_record.user_id,
+                outcome="success",
+                family_id=token_record.family_id,
+            )
+            return
+
+        log_security_event(
+            self._settings,
+            "auth.logout.noop",
+            user_id=token_record.user_id,
+            outcome="noop",
+            reason="token_already_inactive",
+            family_id=token_record.family_id,
+            token_status=token_record.status,
+        )
 
     def request_password_reset(self, email: str) -> None:
         email_clean = email.strip()
         email_normalized = email_clean.lower()
         user = self._users.get_by_email_normalized(email_normalized)
         if not user or not user.is_active:
+            log_security_event(
+                self._settings,
+                "auth.password_reset.requested",
+                email=email_clean,
+                outcome="accepted",
+            )
             return
 
         now = utc_now()
@@ -222,12 +317,29 @@ class AuthService:
         except Exception:
             self._db.rollback()
             raise
+        log_security_event(
+            self._settings,
+            "auth.password_reset.requested",
+            user_id=user.id,
+            email=user.email,
+            outcome="accepted",
+        )
         try:
             self._password_reset_notifier.send_password_reset(
                 email=user.email,
                 reset_token=raw_token,
             )
         except Exception:
+            log_security_event(
+                self._settings,
+                "auth.password_reset.notifier_failed",
+                level="warning",
+                user_id=user.id,
+                email=user.email,
+                outcome="accepted",
+                reason="delivery_failed",
+                exc_info=True,
+            )
             # Keep the forgot-password API externally generic even if delivery fails.
             return
 
@@ -257,6 +369,13 @@ class AuthService:
         except Exception:
             self._db.rollback()
             raise
+        log_security_event(
+            self._settings,
+            "auth.password_reset.completed",
+            user_id=user.id,
+            email=user.email,
+            outcome="success",
+        )
 
     def get_current_user(
         self,
