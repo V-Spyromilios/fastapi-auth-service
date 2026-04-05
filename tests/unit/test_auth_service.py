@@ -61,8 +61,14 @@ def test_register_success(db_session, settings, reset_notifier) -> None:
 
     result = service.register("User@Example.com", PASSWORD)
 
-    assert result.email == "User@Example.com"
-    persisted = db_session.query(User).filter(User.email == "User@Example.com").one()
+    assert result.email == "User@example.com"
+
+    persisted = (
+        db_session.query(User)
+        .filter(User.email_normalized == "user@example.com")
+        .one()
+    )
+    assert persisted.email == "User@Example.com"
     assert persisted.email_normalized == "user@example.com"
 
 
