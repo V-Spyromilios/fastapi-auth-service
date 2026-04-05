@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
@@ -32,6 +33,8 @@ from app.services.password_hasher import PasswordHasher
 from app.services.password_reset_notifier import PasswordResetNotifier
 from app.services.password_reset_token_service import PasswordResetTokenService
 from app.services.token_service import TokenService
+
+_USER_EMAIL_UNIQUE_CONSTRAINT = "uq_users_email_normalized"
 
 
 class AuthService:
@@ -70,6 +73,11 @@ class AuthService:
         self._users.add(user)
         try:
             self._db.commit()
+        except IntegrityError as exc:
+            self._db.rollback()
+            if _is_duplicate_email_integrity_error(exc):
+                raise DuplicateEmailError() from exc
+            raise
         except Exception:
             self._db.rollback()
             raise
@@ -293,3 +301,9 @@ class AuthService:
                 and token.expires_at > now
             ):
                 token.revoked_at = now
+
+
+def _is_duplicate_email_integrity_error(exc: IntegrityError) -> bool:
+    diag = getattr(exc.orig, "diag", None)
+    constraint_name = getattr(diag, "constraint_name", None)
+    return constraint_name == _USER_EMAIL_UNIQUE_CONSTRAINT

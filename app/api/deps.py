@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import Generator
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,7 @@ from app.core.errors import (
     InactiveUserError,
     InvalidTokenError,
     TokenExpiredError,
+    UnauthorizedError,
     UserNotFoundError,
 )
 from app.db.session import Database
@@ -82,11 +83,7 @@ def get_current_user_dep(
     auth: AuthService = Depends(get_auth_service_dep),
 ) -> UserPublic:
     if not credentials or not credentials.credentials:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise UnauthorizedError()
     token = credentials.credentials
     try:
         payload = tokens.decode_access_token(token)
@@ -102,8 +99,4 @@ def get_current_user_dep(
         UserNotFoundError,
         InactiveUserError,
     ) as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from exc
+        raise UnauthorizedError() from exc

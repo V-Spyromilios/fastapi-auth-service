@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from app.api.exception_handlers import add_exception_handlers
 from app.api.v1.routes import auth, users
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(title=settings.app_name, lifespan=lifespan)
+    add_exception_handlers(app)
 
     app.add_middleware(RequestContextMiddleware)
 

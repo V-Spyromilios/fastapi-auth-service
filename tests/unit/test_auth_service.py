@@ -4,6 +4,7 @@ import uuid
 from datetime import timedelta
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from app.core.errors import (
     DuplicateEmailError,
@@ -78,6 +79,33 @@ def test_register_duplicate_email(db_session, settings, reset_notifier) -> None:
 
     with pytest.raises(DuplicateEmailError):
         service.register("USER@example.com", PASSWORD)
+
+
+def test_register_translates_db_unique_violation_to_duplicate_email(
+    db_session,
+    settings,
+    reset_notifier,
+    monkeypatch,
+) -> None:
+    service = _service(db_session, settings, reset_notifier)
+
+    class _Diag:
+        constraint_name = "uq_users_email_normalized"
+
+    class _UniqueViolation(Exception):
+        def __init__(self) -> None:
+            super().__init__("duplicate key value violates unique constraint")
+            self.diag = _Diag()
+
+    monkeypatch.setattr(service._users, "get_by_email_normalized", lambda _: None)
+
+    def _raise_integrity_error() -> None:
+        raise IntegrityError("INSERT INTO users ...", {}, _UniqueViolation())
+
+    monkeypatch.setattr(db_session, "commit", _raise_integrity_error)
+
+    with pytest.raises(DuplicateEmailError):
+        service.register("user@example.com", PASSWORD)
 
 
 def test_login_success(db_session, settings, reset_notifier) -> None:

@@ -17,6 +17,10 @@ class UserNotFoundError(AppError):
     """User not found for an authenticated context."""
 
 
+class UnauthorizedError(AppError):
+    """Authenticated context failed with a safe generic response."""
+
+
 class DuplicateEmailError(AppError):
     """Email already exists."""
 
