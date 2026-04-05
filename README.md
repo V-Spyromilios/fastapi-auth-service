@@ -9,6 +9,7 @@ A production-minded FastAPI authentication service built to learn backend engine
 - Refresh token rotation and replay detection
 - Logout
 - Forgot-password and reset-password flow
+- Scoped in-memory rate limiting for login and forgot-password
 - Access token invalidation after password reset
 - PostgreSQL with Alembic migrations
 - Dockerized local database setup
@@ -60,6 +61,8 @@ Main routes:
 `GET /health` is a lightweight liveness check for the app process.
 
 `GET /ready` is a readiness check that returns `200` only when the app can reach PostgreSQL.
+
+`POST /api/v1/auth/login` and `POST /api/v1/auth/forgot-password` support small in-memory rate limits for local or single-instance use when `RATE_LIMIT_ENABLED=true`.
 
 ## Project Structure
 

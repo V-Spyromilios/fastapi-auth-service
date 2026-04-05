@@ -21,6 +21,14 @@ class UnauthorizedError(AppError):
     """Authenticated context failed with a safe generic response."""
 
 
+class RateLimitExceededError(AppError):
+    """Request exceeded a configured rate limit."""
+
+    def __init__(self, *, retry_after_seconds: int) -> None:
+        super().__init__("Too many requests. Please try again later.")
+        self.retry_after_seconds = retry_after_seconds
+
+
 class DuplicateEmailError(AppError):
     """Email already exists."""
 

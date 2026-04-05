@@ -15,6 +15,7 @@ from app.core.errors import (
     UnauthorizedError,
     UserNotFoundError,
 )
+from app.core.rate_limit import RateLimiter
 from app.db.session import Database
 from app.schemas.users import UserPublic
 from app.services.auth_service import AuthService
@@ -34,6 +35,11 @@ def get_settings_dep() -> Settings:
 def get_db_dep(request: Request) -> Generator[Session, None, None]:
     db: Database = request.app.state.db
     yield from db.get_db()
+
+
+def get_rate_limiter_dep(request: Request) -> RateLimiter:
+    limiter: RateLimiter = request.app.state.rate_limiter
+    return limiter
 
 
 def get_password_hasher_dep() -> PasswordHasher:

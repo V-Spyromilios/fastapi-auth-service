@@ -9,6 +9,7 @@ from app.api.exception_handlers import add_exception_handlers
 from app.api.v1.routes import auth, users
 from app.core.config import get_settings
 from app.core.logging import configure_logging
+from app.core.rate_limit import build_rate_limiter
 from app.db.session import Database
 from app.observability.middleware import RequestContextMiddleware
 
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
     configure_logging(settings)
     app.state.settings = settings
     app.state.db = Database(settings)
+    app.state.rate_limiter = build_rate_limiter(settings)
     yield
 
 

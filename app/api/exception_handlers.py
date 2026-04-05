@@ -11,6 +11,7 @@ from app.core.errors import (
     PasswordResetTokenExpiredError,
     PasswordResetTokenInvalidError,
     PasswordResetTokenUsedError,
+    RateLimitExceededError,
     RevokedTokenError,
     TokenExpiredError,
     TokenReplayError,
@@ -35,6 +36,18 @@ def _error_response(
 
 
 def add_exception_handlers(app: FastAPI) -> None:
+    @app.exception_handler(RateLimitExceededError)
+    async def handle_rate_limit_exceeded(
+        request: Request,
+        exc: RateLimitExceededError,
+    ) -> JSONResponse:
+        del request
+        return _error_response(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(exc),
+            headers={"Retry-After": str(exc.retry_after_seconds)},
+        )
+
     @app.exception_handler(DuplicateEmailError)
     async def handle_duplicate_email(
         request: Request,

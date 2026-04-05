@@ -72,7 +72,22 @@ class Settings(BaseSettings):
 
     # Rate limiting
     rate_limit_enabled: bool = Field(default=False, validation_alias="RATE_LIMIT_ENABLED")
-    rate_limit_provider: str | None = Field(default=None, validation_alias="RATE_LIMIT_PROVIDER")
+    login_rate_limit_window_seconds: int = Field(
+        default=60,
+        validation_alias="LOGIN_RATE_LIMIT_WINDOW_SECONDS",
+    )
+    login_rate_limit_max_requests: int = Field(
+        default=5,
+        validation_alias="LOGIN_RATE_LIMIT_MAX_REQUESTS",
+    )
+    password_reset_rate_limit_window_seconds: int = Field(
+        default=300,
+        validation_alias="PASSWORD_RESET_RATE_LIMIT_WINDOW_SECONDS",
+    )
+    password_reset_rate_limit_max_requests: int = Field(
+        default=3,
+        validation_alias="PASSWORD_RESET_RATE_LIMIT_MAX_REQUESTS",
+    )
 
     @field_validator("app_cors_origins", mode="before")
     @classmethod
