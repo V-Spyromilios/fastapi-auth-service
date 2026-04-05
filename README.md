@@ -54,7 +54,12 @@ Main routes:
 - `POST /api/v1/auth/reset-password`
 - `GET /api/v1/users/me`
 - `GET /health`
+- `GET /ready`
 - `GET /docs`
+
+`GET /health` is a lightweight liveness check for the app process.
+
+`GET /ready` is a readiness check that returns `200` only when the app can reach PostgreSQL.
 
 ## Project Structure
 

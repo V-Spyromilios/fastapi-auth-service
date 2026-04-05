@@ -15,5 +15,7 @@ fi
 start_db_service
 
 info "Starting FastAPI dev server on http://127.0.0.1:${APP_PORT:-8000}"
+info "Liveness: http://127.0.0.1:${APP_PORT:-8000}/health"
+info "Readiness: http://127.0.0.1:${APP_PORT:-8000}/ready"
 
 uvicorn app.main:app --reload --host "${APP_HOST:-0.0.0.0}" --port "${APP_PORT:-8000}"

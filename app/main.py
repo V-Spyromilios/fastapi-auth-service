@@ -1,7 +1,8 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.exception_handlers import add_exception_handlers
@@ -45,7 +46,20 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     def health() -> dict[str, str]:
-        return {"status": "ok"}
+        return {"status": "ok", "service": "alive"}
+
+    @app.get("/ready")
+    def ready() -> JSONResponse:
+        db: Database = app.state.db
+        if db.is_ready():
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={"status": "ok", "database": "ok"},
+            )
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"status": "error", "database": "unavailable"},
+        )
 
     app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
     app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
